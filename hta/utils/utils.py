@@ -53,7 +53,7 @@ def normalize_path(path: str) -> str:
     return normalized_path
 
 
-NCCL_KERNEL_RE = re.compile(r"^nccl.*Kernel")
+NCCL_KERNEL_RE = re.compile(r"(^nccl.*Kernel)|(.*userbuffer)")
 
 
 def is_comm_kernel(name: str) -> bool:
