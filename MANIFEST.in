@@ -2,3 +2,4 @@ include requirements.txt
 include docs/conf.py
 include hta/configs/logging.config
 include hta/configs/trace_analyzer.json
+include hta/configs/event_args_formats/event_args_1.0.0.yaml
