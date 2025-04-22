@@ -58,12 +58,14 @@ class BreakdownAnalysis:
                 "mean": pd.Series(dtype="int"),
                 "kernel_type": pd.Series(dtype="str"),
                 "rank": pd.Series(dtype="int"),
+                "count": pd.Series(dtype="int"),
             }
         )
         kernel_type_df = pd.DataFrame(
             {
                 "kernel_type": pd.Series(dtype="str"),
                 "sum": pd.Series(dtype="int"),
+                "count": pd.Series(dtype="int"),
             }
         )
 
@@ -562,7 +564,7 @@ class BreakdownAnalysis:
         num_kernels: int = 10,
     ) -> pd.DataFrame:
         gpu_kernel_time = gpu_kernel_time.groupby(by=["name"])["dur"].agg(
-            ["sum", "max", "min", "mean", "std"]
+            ["sum", "max", "min", "mean", "std", "count"]
         )
         gpu_kernel_time.reset_index(inplace=True)
         gpu_kernel_time = gpu_kernel_time.sort_values(
@@ -576,16 +578,21 @@ class BreakdownAnalysis:
             quantiles = gpu_kernel_time["cumsum"].quantile(duration_ratio)
             # FIXME linter mismatch between fbcode and git T183519933
             # fmt: off
-            gpu_kernel_time.loc[gpu_kernel_time["cumsum"] > quantiles, "name"] = (
-                "others"
-            )
-            # fmt: on
-            gpu_kernel_time.loc[gpu_kernel_time.index >= num_kernels, "name"] = "others"
-            gpu_kernel_time = gpu_kernel_time.groupby(by=["name"])["sum"].agg(
+
+            others_mask = gpu_kernel_time["cumsum"] > quantiles
+            others = gpu_kernel_time[others_mask].copy()
+            others["name"] = "others"
+            other_count = others["count"].sum()
+            others = others.groupby(by=["name"])["sum"].agg(
                 ["sum", "max", "min", "mean", "std"]
             )
+            others["count"] = other_count
+            gpu_kernel_time = gpu_kernel_time[~others_mask]
+            gpu_kernel_time = pd.concat([gpu_kernel_time, others])
+            # fmt: on
             gpu_kernel_time.reset_index(inplace=True)
             gpu_kernel_time.fillna({"std": 0}, inplace=True)
+            gpu_kernel_time.drop(columns=["index", "cumsum"], inplace=True)
 
         return gpu_kernel_time
 
